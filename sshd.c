@@ -529,7 +529,9 @@ reseed_prngs(void)
 static void
 privsep_preauth_child(void)
 {
+#ifndef SETUID_IMPLIES_SETGID
 	gid_t gidset[1];
+#endif
 
 	/* Enable challenge-response authentication for privilege separation */
 	privsep_challenge_enable();
@@ -556,9 +558,11 @@ privsep_preauth_child(void)
 		/* Drop our privileges */
 		debug3("privsep user:group %u:%u", (u_int)privsep_pw->pw_uid,
 		    (u_int)privsep_pw->pw_gid);
+#ifndef SETUID_IMPLIES_SETGID
 		gidset[0] = privsep_pw->pw_gid;
 		if (setgroups(1, gidset) < 0)
 			fatal("setgroups: %.100s", strerror(errno));
+#endif
 		permanently_set_uid(privsep_pw);
 	}
 }

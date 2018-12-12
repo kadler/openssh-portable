@@ -49,9 +49,11 @@ static gid_t	saved_egid = 0;
 /* Saved effective uid. */
 static int	privileged = 0;
 static int	temporarily_use_uid_effective = 0;
+#ifndef SETUID_IMPLIES_SETGID
 static uid_t	user_groups_uid;
 static gid_t	*saved_egroups = NULL, *user_groups = NULL;
 static int	saved_egroupslen = -1, user_groupslen = -1;
+#endif
 
 /*
  * Temporarily changes to the given uid.  If the effective user
@@ -83,6 +85,7 @@ temporarily_use_uid(struct passwd *pw)
 	privileged = 1;
 	temporarily_use_uid_effective = 1;
 
+#ifndef SETUID_IMPLIES_SETGID
 	saved_egroupslen = getgroups(0, NULL);
 	if (saved_egroupslen < 0)
 		fatal("getgroups: %.100s", strerror(errno));
@@ -119,6 +122,7 @@ temporarily_use_uid(struct passwd *pw)
 	/* Set the effective uid to the given (unprivileged) uid. */
 	if (setgroups(user_groupslen, user_groups) < 0)
 		fatal("setgroups: %.100s", strerror(errno));
+#endif
 #ifndef SAVED_IDS_WORK_WITH_SETEUID
 	/* Propagate the privileged gid to all of our gids. */
 	if (setgid(getegid()) < 0)
@@ -166,8 +170,10 @@ restore_uid(void)
 	setgid(getgid());
 #endif /* SAVED_IDS_WORK_WITH_SETEUID */
 
+#ifndef SETUID_IMPLIES_SETGID 
 	if (setgroups(saved_egroupslen, saved_egroups) < 0)
 		fatal("setgroups: %.100s", strerror(errno));
+#endif
 	temporarily_use_uid_effective = 0;
 }
 

@@ -1399,6 +1399,7 @@ do_setusercontext(struct passwd *pw)
 #else
 		if (setlogin(pw->pw_name) < 0)
 			error("setlogin failed: %s", strerror(errno));
+#ifdef SETUID_IMPLIES_SETGID
 		if (setgid(pw->pw_gid) < 0) {
 			perror("setgid");
 			exit(1);
@@ -1408,6 +1409,7 @@ do_setusercontext(struct passwd *pw)
 			perror("initgroups");
 			exit(1);
 		}
+#endif
 		endgrent();
 #endif
 
