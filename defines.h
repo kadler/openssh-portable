@@ -882,4 +882,8 @@ struct winsize {
 # define USE_SYSTEM_GLOB
 #endif
 
+#if defined(__PASE__)
+# define SETUID_IMPLIES_SETGID
+#endif
+
 #endif /* _DEFINES_H */
