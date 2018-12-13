@@ -960,6 +960,44 @@ mips-sony-bsd|mips-sony-newsos4)
 	    [syslog_r function is safe to use in in a signal handler])
 	TEST_MALLOC_OPTIONS="AFGJPRX"
 	;;
+*-*-os400*)
+	AC_MSG_CHECKING([how to specify blibpath for linker ($LD)])
+	if (test -z "$blibpath"); then
+		blibpath="/QOpenSys/usr/lib"
+	fi
+	if test "$GCC" = "yes"; then
+		blibflags="-Wl,-blibpath:$blibpath"
+	else
+		blibflags="-blibpath:$blibpath"
+	fi
+	AC_CHECK_FUNCS([getgrset])
+	AC_CHECK_DECL([F_CLOSEM],
+	    AC_DEFINE([HAVE_FCNTL_CLOSEM], [1], [Use F_CLOSEM fcntl for closefrom]),
+	    [],
+	    [ #include <limits.h>
+	      #include <fcntl.h> ]
+	)
+	
+	AC_DEFINE([BROKEN_REALPATH], [1], [Define if you have a broken realpath.])
+	AC_DEFINE([SETEUID_BREAKS_SETUID], [1],
+	    [Define if your platform breaks doing a seteuid before a setuid])
+	AC_DEFINE([BROKEN_SETREUID], [1], [Define if your setreuid() is broken])
+	AC_DEFINE([BROKEN_SETREGID], [1], [Define if your setregid() is broken])
+	AC_DEFINE([SPT_TYPE], [SPT_REUSEARGV],
+		[Define to a Set Process Title type if your system is
+		supported by bsd-setproctitle.c])
+	AC_DEFINE([SSHPAM_CHAUTHTOK_NEEDS_RUID], [1],
+	    [AIX 5.2 and 5.3 (and presumably newer) require this])
+	AC_DEFINE([PTY_ZEROREAD], [1], [read(1) can return 0 for a non-closed fd])
+	AC_DEFINE([BROKEN_STRNDUP], 1, [strndup broken, see APAR IY61211])
+	AC_DEFINE([BROKEN_STRNLEN], 1, [strnlen broken, see APAR IY62551])
+	
+	dnl On IBM i, you must have *ALLOBJ or be the same user to receive an fd with recvmsg
+	AC_DEFINE([DISABLE_FD_PASSING])
+
+	dnl On IBM i, even if you call setuid to any user that you have *USE authority to
+	AC_DEFINE([NO_UID_RESTORATION_TEST], [1], [Define to disable UID restoration test])
+	;;
 *-*-solaris*)
 	if test "x$withval" != "xno" ; then
 		need_dash_r=1
