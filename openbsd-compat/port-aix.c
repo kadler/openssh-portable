@@ -59,39 +59,40 @@
 
 #include "port-aix.h"
 
-static char *lastlogin_msg = NULL;
-
-# ifdef HAVE_SETAUTHDB
-static char old_registry[REGISTRY_SIZE] = "";
-# endif
+/* These should be in the system headers but are not. */
+int usrinfo(int, char *, int);
+/* these may or may not be in the headers depending on the version */
+#if defined(HAVE_DECL_SETAUTHDB) && (HAVE_DECL_SETAUTHDB == 0)
+int setauthdb(const char *, char *);
+#endif
+#if defined(HAVE_DECL_AUTHENTICATE) && (HAVE_DECL_AUTHENTICATE == 0)
+int authenticate(char *, char *, int *, char **);
+#endif
+#if defined(HAVE_DECL_LOGINFAILED) && (HAVE_DECL_LOGINFAILED == 0)
+int loginfailed(char *, char *, char *);
+#endif
+#if defined(HAVE_DECL_LOGINRESTRICTIONS) && (HAVE_DECL_LOGINRESTRICTIONS == 0)
+int loginrestrictions(char *, int, char *, char **);
+#endif
+#if defined(HAVE_DECL_LOGINSUCCESS) && (HAVE_DECL_LOGINSUCCESS == 0)
+int loginsuccess(char *, char *, char *, char **);
+#endif
+#if defined(HAVE_DECL_PASSWDEXPIRED) && (HAVE_DECL_PASSWDEXPIRED == 0)
+int passwdexpired(char *, char **);
+#endif
 
 /*
- * AIX has a "usrinfo" area where logname and other stuff is stored -
- * a few applications actually use this and die if it's not set
- *
- * NOTE: TTY= should be set, but since no one uses it and it's hard to
- * acquire due to privsep code.  We will just drop support.
+ * According to the setauthdb man page, AIX password registries must be 15
+ * chars or less plus terminating NUL.
  */
-void
-aix_usrinfo(struct passwd *pw)
-{
-	u_int i;
-	size_t len;
-	char *cp;
-
-	len = sizeof("LOGNAME= NAME= ") + (2 * strlen(pw->pw_name));
-	cp = xmalloc(len);
-
-	i = snprintf(cp, len, "LOGNAME=%s%cNAME=%s%c", pw->pw_name, '\0',
-	    pw->pw_name, '\0');
-	if (usrinfo(SETUINFO, cp, i) == -1)
-		fatal("Couldn't set usrinfo: %s", strerror(errno));
-	debug3("AIX/UsrInfo: set len %d", i);
-
-	free(cp);
-}
+# ifdef HAVE_SETAUTHDB
+static char old_registry[16] = "";
+# endif
 
 # ifdef WITH_AIXAUTHENTICATE
+
+static char *lastlogin_msg = NULL;
+
 /*
  * Remove embedded newlines in string (if any).
  * Used before logging messages returned by AIX authentication functions
@@ -329,6 +330,33 @@ record_failed_login(const char *user, const char *hostname, const char *ttyname)
 }
 #  endif /* CUSTOM_FAILED_LOGIN */
 
+# ifdef USE_AIX_KRB_NAME
+/*
+ * aix_krb5_get_principal_name: returns the user's kerberos client principal name if
+ * configured, otherwise NULL.  Caller must free returned string.
+ */
+char *
+aix_krb5_get_principal_name(char *pw_name)
+{
+	char *authname = NULL, *authdomain = NULL, *principal = NULL;
+
+	setuserdb(S_READ);
+	if (getuserattr(pw_name, S_AUTHDOMAIN, &authdomain, SEC_CHAR) != 0)
+		debug("AIX getuserattr S_AUTHDOMAIN: %s", strerror(errno));
+	if (getuserattr(pw_name, S_AUTHNAME, &authname, SEC_CHAR) != 0)
+		debug("AIX getuserattr S_AUTHNAME: %s", strerror(errno));
+
+	if (authdomain != NULL)
+		xasprintf(&principal, "%s@%s", authname ? authname : pw_name, authdomain);
+	else if (authname != NULL)
+		principal = xstrdup(authname);
+	enduserdb();
+	return principal;
+}
+# endif /* USE_AIX_KRB_NAME */
+
+# endif /* WITH_AIXAUTHENTICATE */
+
 /*
  * If we have setauthdb, retrieve the password registry for the user's
  * account then feed it to setauthdb.  This will mean that subsequent AIX auth
@@ -378,33 +406,6 @@ aix_restoreauthdb(void)
 #  endif /* HAVE_SETAUTHDB */
 }
 
-# endif /* WITH_AIXAUTHENTICATE */
-
-# ifdef USE_AIX_KRB_NAME
-/*
- * aix_krb5_get_principal_name: returns the user's kerberos client principal name if
- * configured, otherwise NULL.  Caller must free returned string.
- */
-char *
-aix_krb5_get_principal_name(char *pw_name)
-{
-	char *authname = NULL, *authdomain = NULL, *principal = NULL;
-
-	setuserdb(S_READ);
-	if (getuserattr(pw_name, S_AUTHDOMAIN, &authdomain, SEC_CHAR) != 0)
-		debug("AIX getuserattr S_AUTHDOMAIN: %s", strerror(errno));
-	if (getuserattr(pw_name, S_AUTHNAME, &authname, SEC_CHAR) != 0)
-		debug("AIX getuserattr S_AUTHNAME: %s", strerror(errno));
-
-	if (authdomain != NULL)
-		xasprintf(&principal, "%s@%s", authname ? authname : pw_name, authdomain);
-	else if (authname != NULL)
-		principal = xstrdup(authname);
-	enduserdb();
-	return principal;
-}
-# endif /* USE_AIX_KRB_NAME */
-
 # if defined(AIX_GETNAMEINFO_HACK) && !defined(BROKEN_ADDRINFO)
 # undef getnameinfo
 /*
@@ -433,6 +434,32 @@ sshaix_getnameinfo(const struct sockaddr *sa, size_t salen, char *host,
 	return getnameinfo(sa, salen, host, hostlen, serv, servlen, flags);
 }
 # endif /* AIX_GETNAMEINFO_HACK */
+
+/*
+ * AIX has a "usrinfo" area where logname and other stuff is stored -
+ * a few applications actually use this and die if it's not set
+ *
+ * NOTE: TTY= should be set, but since no one uses it and it's hard to
+ * acquire due to privsep code.  We will just drop support.
+ */
+void
+aix_usrinfo(struct passwd *pw)
+{
+	u_int i;
+	size_t len;
+	char *cp;
+
+	len = sizeof("LOGNAME= NAME= ") + (2 * strlen(pw->pw_name));
+	cp = xmalloc(len);
+
+	i = snprintf(cp, len, "LOGNAME=%s%cNAME=%s%c", pw->pw_name, '\0',
+	    pw->pw_name, '\0');
+	if (usrinfo(SETUINFO, cp, i) == -1)
+		fatal("Couldn't set usrinfo: %s", strerror(errno));
+	debug3("AIX/UsrInfo: set len %d", i);
+
+	free(cp);
+}
 
 # if defined(USE_GETGRSET)
 #  include <stdlib.h>

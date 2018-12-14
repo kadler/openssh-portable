@@ -24,34 +24,13 @@
  * THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
+#ifndef PORT_AIX_H
+#define PORT_AIX_H
+
 #ifdef _AIX
 
 #ifdef HAVE_SYS_SOCKET_H
 # include <sys/socket.h>
-#endif
-
-struct sshbuf;
-
-/* These should be in the system headers but are not. */
-int usrinfo(int, char *, int);
-#if defined(HAVE_DECL_SETAUTHDB) && (HAVE_DECL_SETAUTHDB == 0)
-int setauthdb(const char *, char *);
-#endif
-/* these may or may not be in the headers depending on the version */
-#if defined(HAVE_DECL_AUTHENTICATE) && (HAVE_DECL_AUTHENTICATE == 0)
-int authenticate(char *, char *, int *, char **);
-#endif
-#if defined(HAVE_DECL_LOGINFAILED) && (HAVE_DECL_LOGINFAILED == 0)
-int loginfailed(char *, char *, char *);
-#endif
-#if defined(HAVE_DECL_LOGINRESTRICTIONS) && (HAVE_DECL_LOGINRESTRICTIONS == 0)
-int loginrestrictions(char *, int, char *, char **);
-#endif
-#if defined(HAVE_DECL_LOGINSUCCESS) && (HAVE_DECL_LOGINSUCCESS == 0)
-int loginsuccess(char *, char *, char *, char **);
-#endif
-#if defined(HAVE_DECL_PASSWDEXPIRED) && (HAVE_DECL_PASSWDEXPIRED == 0)
-int passwdexpired(char *, char **);
 #endif
 
 /* Some versions define r_type in the above headers, which causes a conflict */
@@ -74,17 +53,10 @@ int passwdexpired(char *, char **);
 # include <usersec.h>
 #endif
 
-/*
- * According to the setauthdb man page, AIX password registries must be 15
- * chars or less plus terminating NUL.
- */
-#ifdef HAVE_SETAUTHDB
-# define REGISTRY_SIZE	16
-#endif
-
 void aix_usrinfo(struct passwd *);
 
 #ifdef WITH_AIXAUTHENTICATE
+struct sshbuf;
 # define CUSTOM_SYS_AUTH_PASSWD 1
 # define CUSTOM_SYS_AUTH_ALLOWED_USER 1
 int sys_auth_allowed_user(struct passwd *, struct sshbuf *);
@@ -102,7 +74,6 @@ char *aix_krb5_get_principal_name(char *);
 
 void aix_setauthdb(const char *);
 void aix_restoreauthdb(void);
-void aix_remove_embedded_newlines(char *);
 
 #if defined(AIX_GETNAMEINFO_HACK) && !defined(BROKEN_GETADDRINFO)
 # ifdef getnameinfo
@@ -124,3 +95,4 @@ int getgrouplist(const char *, gid_t, gid_t *, int *);
 #endif
 
 #endif /* _AIX */
+#endif /* PORT_AIX_H */
