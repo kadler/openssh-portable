@@ -334,6 +334,7 @@ char *shadow_pw(struct passwd *pw);
 #include "port-aix.h"
 #include "port-irix.h"
 #include "port-linux.h"
+#include "port-pase.h"
 #include "port-solaris.h"
 #include "port-net.h"
 #include "port-uw.h"

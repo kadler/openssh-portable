@@ -89,6 +89,7 @@ COMPAT=	arc4random.o \
 	xcrypt.o
 
 PORTS=	port-aix.o \
+	port-pase.o \
 	port-irix.o \
 	port-linux.o \
 	port-solaris.o \
