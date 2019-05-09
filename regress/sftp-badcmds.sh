@@ -7,6 +7,16 @@ DATA2=/bin/sh${EXEEXT}
 NONEXIST=/NONEXIST.$$
 GLOBFILES=`(cd /bin;echo l*)`
 
+if have_prog uname ; then
+	case `uname` in
+	OS400)
+		# /bin/sh on IBM i is an MI *PGM object, which can't
+		# be read directly. Use PASE equivalent instead
+		DATA2=/QOpenSys/bin/sh
+		;;
+	esac
+fi
+
 rm -rf ${COPY} ${COPY}.1 ${COPY}.2 ${COPY}.dd
 
 rm -f ${COPY}
